@@ -4,7 +4,7 @@ Installation
 ============
 
 ```shell
-pip install https://github.com/ryneeverett/pelican_dev_server.git
+pip install git+https://github.com/ryneeverett/pelican_dev_server.git
 ```
 
 Recommended
@@ -21,7 +21,7 @@ alias dev_server='pelican_dev_server -p $PWD/relative/path/to/project'
 
 Help
 ====
-```shell
+```
 $ pelican_dev_server --help
 usage: pelican_dev_server [-h] -p PATH [-d] [-o [BROWSER]]
 
