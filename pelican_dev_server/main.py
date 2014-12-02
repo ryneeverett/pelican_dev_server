@@ -66,11 +66,15 @@ def main():
         webbrowser.get(BROWSER).open('http://127.0.0.1:8080')
 
     # control loop
-    try:
-        time.sleep(1)
-    except KeyboardInterrupt:
-        OBSERVER.stop()
-        cherrypy.engine.exit()
+    while True:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            break
+
+    # teardown
+    OBSERVER.stop()
+    os._exit(0)
 
 
 def get_html_file(path):
