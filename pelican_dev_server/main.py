@@ -10,7 +10,6 @@ import sys
 import time
 import argparse
 import datetime
-import threading
 import contextlib
 import subprocess
 import webbrowser
@@ -40,24 +39,38 @@ OUTPUT_PATH = os.path.join(PELICAN_PATH, PELICAN_SETTINGS['OUTPUT_PATH'])
 # variables
 LAST_UPDATE = datetime.datetime.now()
 OBSERVER = None
-RUNNING = True
 
 
 def main():
-    threading.Thread(target=run_server, daemon=True).start()
-    threading.Thread(target=run_observer).start()
+    # configure server
+    static_dirs = PELICAN_SETTINGS['STATIC_PATHS'] + [PELICAN_SETTINGS['THEME']]
+    config = {
+        '/' + static_dir: {
+            'tools.staticdir.on': True,
+            'tools.staticdir.dir': os.path.join(OUTPUT_PATH, static_dir)}
+        for static_dir in static_dirs}
+    cherrypy.config.update({'engine.autoreload.on': False})
+    if not DEBUG:
+        cherrypy.config.update({'log.screen': False})
+    cherrypy.tree.mount(CherrypyServer(), '/', config=config)
 
+    # configure observer
+    global OBSERVER
+    OBSERVER = PausingObserver()
+    OBSERVER.schedule(PelicanUpdater(), PELICAN_PATH, recursive=True)
+
+    # start threads
+    cherrypy.engine.start()
+    OBSERVER.start()
     if BROWSER:
-        browser = webbrowser.get(BROWSER)
-        browser.open('http://127.0.0.1:8080')
+        webbrowser.get(BROWSER).open('http://127.0.0.1:8080')
 
+    # control loop
     try:
-        while True:
-            time.sleep(1)
+        time.sleep(1)
     except KeyboardInterrupt:
-        global RUNNING
-        RUNNING = False
         OBSERVER.stop()
+        cherrypy.engine.exit()
 
 
 def get_html_file(path):
@@ -72,27 +85,6 @@ def get_html_file(path):
         return f
     except FileNotFoundError:
         raise cherrypy.NotFound()
-
-
-def run_server():
-    static_dirs = PELICAN_SETTINGS['STATIC_PATHS'] + [PELICAN_SETTINGS['THEME']]
-    config = {
-        '/' + static_dir: {
-            'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(OUTPUT_PATH, static_dir)}
-        for static_dir in static_dirs}
-    if not DEBUG:
-        cherrypy.config.update({'environment': 'embedded', 'log.screen': False})
-    cherrypy.quickstart(CherrypyServer(), '/', config=config)
-
-
-def run_observer():
-    global OBSERVER
-    OBSERVER = PausingObserver()
-    OBSERVER.schedule(PelicanUpdater(), PELICAN_PATH, recursive=True)
-    OBSERVER.start()
-    while RUNNING:
-        time.sleep(.1)
 
 
 class CherrypyServer(object):
